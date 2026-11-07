@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>出勤簿</title>
+    
+    <!-- 外部のmanifest.jsonを読み込むように修正 -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon.png">
+
+    <style>
+        /* =========================================
+           BHV記録アプリ風のカスタムデザイン
+        ========================================= */
+        :root {
+            --primary: #E8A0B8; 
+            --primary-dark: #D487A0; 
+            --primary-light: #FBEBF0; 
+            --bg-main: #ffffff; 
+            --bg-sub: #FFF6F6; 
+            --text-main: #5C4B51; 
+            --text-muted: #8E7A82; 
+            --border-color: #F0D5D8; 
+            --sky: #38bdf8;
+            --sky-light: #e0f2fe;
+            --orange: #fb923c;
+            --orange-light: #ffedd5;
+            --danger: #ef4444;
+            --green: #10b981;
+            --radius: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background-color: var(--bg-sub);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            letter-spacing: 0.04em;
+        }
+
+        input[type="text"] {
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(200, 150, 150, 0.2);
+            z-index: 10;
+        }
+        header h1 { font-size: 2.5rem; font-weight: bold; display: flex; align-items: center; gap: 0.8rem; }
+        .header-time { text-align: right; }
+        .header-time .date { font-size: 1.2rem; opacity: 0.9; font-weight: bold; margin-bottom: 0.2rem; }
+        .header-time .time { font-size: 2.8rem; font-weight: 900; letter-spacing: 3px; line-height: 1; }
+
+        main {
+            display: flex;
+            flex: 1;
+            padding: 1rem 1.5rem;
+            gap: 1.5rem;
+            overflow: hidden;
+            max-width: 1920px;
+            margin: 0 auto;
+            width: 100%;
+            height: calc(100vh - 85px);
+        }
+
+        .left-area {
+            flex: 4.5;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow: hidden; 
+            height: 100%;
+        }
+        .right-area { flex: 5.5; display: flex; flex-direction: column; min-width: 0; height: 100%; }
+
+        .pane {
+            background-color: var(--bg-main);
+            border-radius: var(--radius);
+            border: 3px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 15px -3px rgba(200, 150, 150, 0.1);
+            overflow: hidden;
+        }
+        .pane-flex { flex: 1; min-height: 0; }
+
+        .pane-header {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: bold;
+            font-size: 1.25rem;
+            padding: 0.75rem 1.25rem;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            white-space: nowrap; 
+            overflow-x: auto; 
+            gap: 1rem; 
+        }
+        .pane-header::-webkit-scrollbar { display: none; }
+        .pane-header { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .pane-body {
+            padding: 1rem 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .select-group { display: flex; flex-direction: column; gap: 0.75rem; }
+        .large-select-btn {
+            width: 100%; height: clamp(45px, 6vh, 60px);
+            font-size: clamp(0.95rem, 1.8vw, 1.3rem); font-weight: bold;
+            border: 3px solid var(--border-color); border-radius: 12px;
+            background-color: var(--primary-light); color: var(--text-main);
+            text-align: center; cursor: pointer; outline: none; transition: 0.2s;
+            display: flex; justify-content: center; align-items: center; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 1rem;
+        }
+        .large-select-btn:disabled {
+            background-color: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed;
+        }
+        .large-select-btn:not(:disabled):active { transform: scale(0.98); }
+
+        .list-select-btn {
+            width: 100%; padding: 1.2rem; font-size: clamp(1.2rem, 3vw, 1.5rem); font-weight: bold;
+            background: white; border: 2px solid var(--border-color); border-radius: 8px;
+            color: var(--text-main); cursor: pointer; transition: 0.2s; text-align: center;
+        }
+        .list-select-btn:active { background: var(--primary-light); transform: scale(0.98); }
+
+        .div-toggle {
+            display: flex; gap: 0.75rem;
+            background-color: #f8f9fa; padding: 0.4rem;
+            border-radius: 14px; border: 2px solid #e9ecef;
+            flex-shrink: 0;
+        }
+        .div-btn {
+            flex: 1; height: clamp(48px, 7vh, 65px); border-radius: 10px;
+            font-size: clamp(1.1rem, 2vw, 1.5rem); font-weight: bold; border: 3px solid transparent;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;
+            background: white; color: var(--text-muted); transition: 0.2s;
+        }
+        .div-btn.active-am { color: var(--sky); border-color: var(--sky-light); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .div-btn.active-pm { color: var(--orange); border-color: var(--orange-light); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+
+        .punch-buttons { display: flex; gap: 1rem; margin-top: auto; flex: 1; align-items: stretch; max-height: 140px; }
+        .punch-btn {
+            flex: 1; min-height: 75px; border-radius: 24px;
+            font-size: clamp(1.3rem, 2.5vw, 2rem); font-weight: bold; color: white; border: none; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;
+            transition: 0.2s; box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+        .punch-btn span.icon { font-size: clamp(1.6rem, 3.5vw, 2.6rem); }
+        .punch-btn:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+        .punch-btn:not(:disabled):active { transform: scale(0.95); }
+        
+        .btn-in-am { background: var(--sky); }
+        .btn-out-am { background: #3b82f6; } 
+        .btn-in-pm { background: var(--orange); }
+        .btn-out-pm { background: #ea580c; }
+
+        .btn {
+            background-color: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem;
+            border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; transition: 0.2s;
+            white-space: nowrap; 
+            letter-spacing: 0.05em; 
+        }
+        .btn-text { background: none; color: var(--text-muted); font-size: 1.1rem; border: none; cursor: pointer; font-weight: bold; white-space: nowrap; letter-spacing: 0.05em; }
+        .btn-sm { padding: 0.5rem 0.8rem; font-size: 1.05rem; border-radius: 6px; white-space: nowrap; letter-spacing: 0.05em; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(92, 75, 81, 0.7); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; visibility: hidden; opacity: 0; transition: 0.1s;
+        }
+        .modal-overlay.show { visibility: visible; opacity: 1; }
+        
+        .modal-content {
+            background: white; border-radius: 24px; padding: 3rem; width: 90%; max-width: 550px;
+            text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 4px solid var(--border-color);
+            transform: translateY(20px) scale(0.95); transition: 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .modal-overlay.show .modal-content { transform: translateY(0) scale(1); }
+
+        .time-adjust-row { display: flex; justify-content: center; align-items: center; gap: 2rem; margin: 2.5rem 0; }
+        .time-adjust-btn {
+            width: 80px; height: 80px; border-radius: 50%; border: none; font-size: 1.8rem; font-weight: bold;
+            background: var(--primary-light); color: var(--primary-dark); cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s;
+        }
+        .time-adjust-btn:active { transform: scale(0.9); }
+        .modal-time-text { font-size: 5rem; font-weight: bold; font-family: monospace; color: var(--text-main); }
+        
+        .modal-actions { display: flex; gap: 1.5rem; margin-top: 2rem; }
+        .modal-actions button { flex: 1; padding: 1.5rem 1rem; font-size: clamp(1.2rem, 3vw, 1.6rem); border-radius: 16px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; white-space: nowrap; }
+        .btn-cancel { background: #e2e8f0; color: var(--text-main); }
+        .btn-commit { background: var(--primary-dark); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .modal-actions button:active { transform: scale(0.95); }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: center; border-bottom: 2px solid var(--primary-light); font-size: 1.3rem; white-space: nowrap; vertical-align: middle; letter-spacing: 0.03em; }
+        th { background: var(--primary-light); color: var(--primary-dark); position: sticky; top: 0; z-index: 10; font-weight: bold; }
+        tbody tr:hover { background-color: var(--primary-light); }
+        .badge { padding: 0.4rem 1rem; border-radius: 20px; font-weight: bold; font-size: 1.1rem; border: 2px solid; }
+        .badge-am { background: var(--sky-light); color: #0284c7; border-color: #bae6fd; }
+        .badge-pm { background: var(--orange-light); color: #c2410c; border-color: #fed7aa; }
+
+        .custom-checkbox { width: 24px; height: 24px; cursor: pointer; accent-color: var(--primary); }
+        th .custom-checkbox, td .custom-checkbox { transform: translateY(4px); }
+        
+        .emp-label { display: flex; align-items: center; gap: 1rem; padding: 1rem; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1.3rem; font-weight: bold; background: white; cursor: pointer; transition: 0.2s; }
+        .emp-label:active { background: var(--primary-light); }
+        
+        .action-btn { padding: 0.4rem 0.8rem; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; color: white; margin: 0 0.2rem; font-size: 1rem; }
+        .btn-edit { background: var(--sky); }
+        .btn-delete { background: var(--danger); }
+
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background-color: var(--text-main); color: white; padding: 16px 32px; font-weight: bold; font-size: clamp(1.1rem, 3vw, 1.5rem);
+            border-radius: 40px; opacity: 0; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; pointer-events: none;
+            display: flex; align-items: center; gap: 1rem; white-space: nowrap;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .manage-modal-content { max-width: 800px; height: 85vh; display: flex; flex-direction: column; padding: 2rem; }
+        .manage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .manage-form { display: flex; gap: 1rem; background: var(--bg-sub); padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem; flex-wrap: wrap; transition: 0.3s; }
+        
+        @keyframes highlightFlash {
+            0% { box-shadow: 0 0 0 4px var(--primary); background-color: var(--primary-light); }
+            100% { box-shadow: 0 0 0 0 transparent; background-color: var(--bg-sub); }
+        }
+        .highlight-flash { animation: highlightFlash 3s ease-out; }
+
+        .manage-form input, .manage-form .manage-category-btn { flex: 1; padding: 0.8rem; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1.1rem; min-width: 150px; background-color: white; transition: 0.2s; text-align: center; }
+        .manage-form input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+        .manage-category-btn { color: var(--text-main); text-align: center; cursor: pointer; }
+        .manage-table-container { flex: 1; overflow-y: auto; border: 2px solid var(--border-color); border-radius: 12px; }
+        .manage-table-container th { position: sticky; top: 0; background: var(--primary-light); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        
+        .svg-icon {
+            width: 1.2em;
+            height: 1.2em;
+            vertical-align: -0.2em;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: inline-block;
+        }
+        .flex-center {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+    </style>
+</head>
+<body>
+    <svg style="display: none;">
+        <defs>
+            <symbol id="icon-clipboard" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></symbol>
+            <symbol id="icon-cog" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></symbol>
+            <symbol id="icon-user" viewBox="0 0 24 24"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></symbol>
+            <symbol id="icon-users" viewBox="0 0 24 24"><path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></symbol>
+            <symbol id="icon-user-minus" viewBox="0 0 24 24"><path d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></symbol>
+            <symbol id="icon-clock" viewBox="0 0 24 24"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></symbol>
+            <symbol id="icon-login" viewBox="0 0 24 24"><path d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" /></symbol>
+            <symbol id="icon-logout" viewBox="0 0 24 24"><path d="M9 15L5.25 12m0 0l3.75-3.75M5.25 12H21" /></symbol>
+            <symbol id="icon-list" viewBox="0 0 24 24"><path d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></symbol>
+            <symbol id="icon-excel" viewBox="0 0 24 24"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></symbol>
+            <symbol id="icon-inbox" viewBox="0 0 24 24"><path d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z" /></symbol>
+            <symbol id="icon-sun" viewBox="0 0 24 24"><path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></symbol>
+            <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></symbol>
+            <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></symbol>
+            <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></symbol>
+            <symbol id="icon-alert" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></symbol>
+            <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15" /></symbol>
+            <symbol id="icon-save" viewBox="0 0 24 24"><path d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 019 9v.375M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375M9 15l2.25 2.25L15 12" /></symbol>
+            <symbol id="icon-check" viewBox="0 0 24 24"><path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></symbol>
+            <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></symbol>
+            <symbol id="icon-play" viewBox="0 0 24 24"><path d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></symbol>
+            <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" ry="2" /></symbol>
+        </defs>
+    </svg>
+
+    <header>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <h1><svg class="svg-icon" style="font-size: 1.1em;"><use href="#icon-clipboard"></use></svg> 出勤簿</h1>
+            <button onclick="openManageModal()" class="btn btn-text flex-center" style="color: white; border: 1px solid rgba(255,255,255,0.7); padding: 0.6rem 1rem; font-size: 1.1rem; margin-top: 0.2rem;"><svg class="svg-icon"><use href="#icon-cog"></use></svg> 職員管理</button>
+        </div>
+        <div class="header-time">
+            <div id="current-date" class="date">----年--月--日</div>
+            <div id="current-time" class="time">--:--:--</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="left-area">
+            <div class="pane" style="flex: 0 0 auto;">
+                <div class="pane-header">
+                    <span class="flex-center"><svg class="svg-icon"><use href="#icon-user"></use></svg> 1. 職種と名前を選択</span>
+                </div>
+                <div class="pane-body">
+                    <div class="select-group">
+                        <button id="category-btn" class="large-select-btn" onclick="openCategoryModal()">
+                            ▼ ① 職種を選択
+                        </button>
+                        <button id="employee-btn" class="large-select-btn" disabled onclick="openEmployeeModal()">
+                            ▼ ② 氏名を選択（複数選択可）
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pane pane-flex">
+                <div class="pane-header">
+                    <span class="flex-center"><svg class="svg-icon"><use href="#icon-clock"></use></svg> 2. 打刻</span>
+                </div>
+                <div class="pane-body" style="gap: 1rem; justify-content: space-between;">
+                    <div class="div-toggle">
+                        <button id="div-am" class="div-btn active-am" onclick="selectDivision('AM')">午前 (AM)</button>
+                        <button id="div-pm" class="div-btn" onclick="selectDivision('PM')">午後 (PM)</button>
+                    </div>
+
+                    <div class="punch-buttons">
+                        <button id="btn-in" class="punch-btn" disabled onclick="openPunchModal('IN')">
+                            <svg class="svg-icon" style="font-size: 2.6rem; stroke-width: 1.5;"><use href="#icon-play"></use></svg> 出 勤
+                        </button>
+                        <button id="btn-out" class="punch-btn" disabled onclick="openPunchModal('OUT')">
+                            <svg class="svg-icon" style="font-size: 2.6rem; stroke-width: 1.5;"><use href="#icon-stop"></use></svg> 退 勤
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-area pane">
+            <div class="pane-header">
+                <span style="flex-shrink: 0;" class="flex-center"><svg class="svg-icon"><use href="#icon-list"></use></svg> 打刻履歴</span>
+                <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: nowrap; flex-shrink: 0;">
+                    <button onclick="openBatchOutModal()" class="btn btn-sm flex-center" style="background-color: var(--orange);"><svg class="svg-icon"><use href="#icon-stop"></use></svg> まとめて退勤</button>
+                    <button onclick="downloadExcel()" class="btn btn-sm flex-center" style="background-color: var(--green);"><svg class="svg-icon"><use href="#icon-excel"></use></svg> Excel出力</button>
+                    <button onclick="showConfirmModal()" class="btn btn-sm flex-center" style="background-color: var(--danger);"><svg class="svg-icon"><use href="#icon-trash"></use></svg> 履歴クリア</button>
+                </div>
+            </div>
+            <div class="pane-body" style="padding: 0;">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="history-select-all" class="custom-checkbox" onclick="toggleAllHistory(this)"></th>
+                                <th>打刻時間</th>
+                                <th>出/退</th>
+                                <th>氏名</th>
+                                <th>時間帯</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-list">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-state" style="text-align: center; color: var(--text-muted); padding: 5rem 0; font-size: 1.5rem; font-weight: bold; display: none;">
+                    <svg class="svg-icon" style="font-size: 4em; opacity: 0.3; display: block; margin: 0 auto 0.5em;"><use href="#icon-inbox"></use></svg>
+                    まだ打刻履歴がありません
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- モーダル類 -->
+    <div id="category-modal" class="modal-overlay">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 1rem; font-weight: bold; flex-shrink: 0;" class="flex-center"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-list"></use></svg> 職種を選択</h3>
+            <div id="category-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.8rem; flex: 1; min-height: 0; padding: 0.5rem 0;"></div>
+            <button class="btn-cancel" style="margin-top: 1rem; width: 100%; padding: 1rem; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; flex-shrink: 0;" onclick="closeCategoryModal()">キャンセル</button>
+        </div>
+    </div>
+
+    <div id="employee-modal" class="modal-overlay">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 1rem; font-weight: bold; flex-shrink: 0;" class="flex-center"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-users"></use></svg> 氏名を選択 (複数選択可)</h3>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-shrink: 0;">
+                <button class="btn" style="flex:1; padding: 0.8rem; font-size: 1.1rem; text-align: center; justify-content: center; align-items: center;" onclick="selectAllEmployees()">すべて選択</button>
+                <button class="btn-cancel" style="flex:1; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px; display: flex; justify-content: center; align-items: center;" onclick="clearAllEmployees()">選択解除</button>
+            </div>
+            <div id="employee-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.8rem; flex: 1; padding: 0.5rem 0; min-height: 0;"></div>
+            <div class="modal-actions" style="margin-top: 1rem; flex-shrink: 0;">
+                <button class="btn-cancel" onclick="closeEmployeeModal()">閉じる</button>
+                <button class="btn-commit" onclick="confirmEmployeeSelection()">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="punch-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-badge" style="display: inline-block; padding: 0.5rem 1.5rem; border-radius: 20px; font-weight: bold; font-size: 1.2rem; margin-bottom: 1rem; background: var(--primary-light); color: var(--primary-dark);">AM - 出勤</div>
+            <h3 id="modal-employee-name" style="font-size: 1.8rem; color: var(--text-main); margin-bottom: 0.5rem;"></h3>
+            <p style="color: var(--text-muted); font-size: 1.1rem; font-weight: bold;">打刻時刻を確認・修正してください</p>
+            <div class="time-adjust-row">
+                <button class="time-adjust-btn" onclick="adjustPunchTime(-5)">-5</button>
+                <div id="modal-time-display" class="modal-time-text">09:00</div>
+                <button class="time-adjust-btn" onclick="adjustPunchTime(5)">+5</button>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closePunchModal()">キャンセル</button>
+                <button class="btn-commit" onclick="commitPunch()">この時間で記録</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-history-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="font-size: 1.8rem; color: var(--text-main); margin-bottom: 1rem;" class="flex-center"><svg class="svg-icon" style="color:var(--sky)"><use href="#icon-edit"></use></svg> 打刻の修正</h3>
+            <p id="edit-history-info" style="color: var(--text-muted); font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;"></p>
+            <div class="time-adjust-row">
+                <button class="time-adjust-btn" onclick="adjustEditTime(-1)">-1</button>
+                <button class="time-adjust-btn" onclick="adjustEditTime(-5)">-5</button>
+                <div id="edit-time-display" class="modal-time-text" style="font-size: 4rem;">09:00</div>
+                <button class="time-adjust-btn" onclick="adjustEditTime(5)">+5</button>
+                <button class="time-adjust-btn" onclick="adjustEditTime(1)">+1</button>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeEditHistoryModal()">キャンセル</button>
+                <button class="btn-commit" onclick="saveEditHistory()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="font-size: 1.8rem; color: var(--text-main); margin-bottom: 1.5rem;" class="flex-center"><svg class="svg-icon" style="color:var(--danger)"><use href="#icon-alert"></use></svg> 履歴をクリア</h3>
+            <p style="color: var(--text-main); font-size: 1.2rem; line-height: 1.5;">すべての打刻履歴を削除します。よろしいですか？<br><span style="color: var(--danger); font-size: 1rem; font-weight: bold;">※この操作は取り消せません。</span></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideConfirmModal()">キャンセル</button>
+                <button class="btn-danger" onclick="executeClearHistory()">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-history-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="font-size: 1.8rem; color: var(--text-main); margin-bottom: 1.5rem;" class="flex-center"><svg class="svg-icon" style="color:var(--danger)"><use href="#icon-trash"></use></svg> 履歴を削除</h3>
+            <p style="color: var(--text-main); font-size: 1.2rem; line-height: 1.5;">この打刻履歴を削除しますか？<br><span style="color: var(--danger); font-size: 1rem; font-weight: bold;">※この操作は取り消せません。</span></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeDeleteHistoryModal()">キャンセル</button>
+                <button class="btn-danger" onclick="executeDeleteHistory()">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-emp-modal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content">
+            <h3 style="font-size: 1.8rem; color: var(--text-main); margin-bottom: 1.5rem;" class="flex-center"><svg class="svg-icon" style="color:var(--danger)"><use href="#icon-user-minus"></use></svg> 職員を削除</h3>
+            <p style="color: var(--text-main); font-size: 1.2rem; line-height: 1.5;">選択した職員を削除します。よろしいですか？<br><span id="delete-emp-name" style="color: var(--danger); font-size: 1.2rem; font-weight: bold; display: block; margin-top: 0.5rem;"></span></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideDeleteEmpModal()">キャンセル</button>
+                <button class="btn-danger" onclick="executeDeleteEmployee()">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="save-emp-modal" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content">
+            <h3 style="font-size: 1.8rem; color: var(--text-main); margin-bottom: 1.5rem;" id="save-emp-title" class="flex-center"></h3>
+            <p style="color: var(--text-main); font-size: 1.2rem; line-height: 1.5;" id="save-emp-msg"></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideSaveEmpModal()">キャンセル</button>
+                <button class="btn-commit" onclick="executeSaveEmployee()">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="manage-category-modal" class="modal-overlay" style="z-index: 1200;">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 1rem; font-weight: bold;" class="flex-center"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-list"></use></svg> 職種を選択</h3>
+            <div id="manage-category-list" style="overflow-y: auto; display: flex; flex-direction: column; gap: 0.8rem; flex: 1; padding: 0.5rem 0;"></div>
+            <button class="btn-cancel" style="margin-top: 1rem; width: 100%; padding: 1rem; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer;" onclick="closeManageCategoryModal()">キャンセル</button>
+        </div>
+    </div>
+
+    <div id="manage-modal" class="modal-overlay">
+        <div class="modal-content manage-modal-content">
+            <div class="manage-header">
+                <h3 style="font-size: 1.8rem; color: var(--text-main);" class="flex-center"><svg class="svg-icon"><use href="#icon-cog"></use></svg> 職員管理</h3>
+                <button class="btn btn-cancel flex-center" style="padding: 0.6rem 1.2rem; font-size: 1rem;" onclick="closeManageModal()"><svg class="svg-icon"><use href="#icon-close"></use></svg> 閉じる</button>
+            </div>
+            <form id="manage-form" class="manage-form" onsubmit="prepareSaveEmployee(event)">
+                <input type="hidden" id="manage-id">
+                <input type="hidden" id="manage-category-val">
+                <button type="button" id="manage-category-btn" class="manage-category-btn" onclick="openManageCategoryModal()">▼ 職種を選択</button>
+                <input type="text" id="manage-name" placeholder="氏名 (例: 山田 太郎)" required>
+                <button type="submit" class="btn flex-center" id="manage-submit-btn"><svg class="svg-icon"><use href="#icon-plus"></use></svg> 追加</button>
+                <button type="button" class="btn btn-cancel" style="display:none;" id="manage-cancel-btn" onclick="resetManageForm()">キャンセル</button>
+            </form>
+            <div class="manage-table-container">
+                <table>
+                    <thead>
+                        <tr><th>職種</th><th>氏名</th><th style="width: 170px; text-align: center;">操作</th></tr>
+                    </thead>
+                    <tbody id="manage-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="flex-center"><svg class="svg-icon"><use href="#icon-check"></use></svg> <span id="toast-msg">メッセージ</span></div>
+
+    <script>
+        const fixedCategories = ["保健師", "助産師", "看護師", "栄養士", "保育士", "歯科衛生士", "検査技師"];
+        const defaultEmployees = [
+            { id: 1, category: "保健師", name: "大池　実佳" },
+            { id: 2, category: "保健師", name: "清水　美恵子" },
+            { id: 3, category: "保健師", name: "橘　和子" },
+            { id: 4, category: "保健師", name: "長谷川　美菜" },
+            { id: 5, category: "助産師", name: "内堀　抄子" },
+            { id: 6, category: "助産師", name: "片岡　啓子" },
+            { id: 7, category: "助産師", name: "幸野　智美" },
+            { id: 8, category: "助産師", name: "白鳥　未知" },
+            { id: 9, category: "助産師", name: "須江　佳子" },
+            { id: 10, category: "助産師", name: "藤澤　宏江" },
+            { id: 11, category: "助産師", name: "松葉　砂恵子" },
+            { id: 12, category: "助産師", name: "百瀬　美那" },
+            { id: 13, category: "助産師", name: "柳沢　明子" },
+            { id: 14, category: "助産師", name: "吉川　加良子" },
+            { id: 15, category: "看護師", name: "今地　ゆきみ" },
+            { id: 16, category: "看護師", name: "江元　佐恵子" },
+            { id: 17, category: "看護師", name: "川野　鈴子" },
+            { id: 18, category: "看護師", name: "北川　亜由美" },
+            { id: 19, category: "看護師", name: "小平　幸恵" },
+            { id: 20, category: "看護師", name: "佐々木　美恵" },
+            { id: 21, category: "看護師", name: "髙橋　恵美" },
+            { id: 22, category: "看護師", name: "土屋　繁子" },
+            { id: 23, category: "看護師", name: "長岡　順子" },
+            { id: 24, category: "看護師", name: "栁澤　美枝" },
+            { id: 25, category: "看護師", name: "山田　由美" },
+            { id: 26, category: "看護師", name: "山本　京子" },
+            { id: 27, category: "栄養士", name: "飯森　絵梨" },
+            { id: 28, category: "栄養士", name: "内堀　美緒" },
+            { id: 29, category: "栄養士", name: "荻原　さき子" },
+            { id: 30, category: "栄養士", name: "上村　敦子" },
+            { id: 31, category: "栄養士", name: "木内　由美" },
+            { id: 32, category: "栄養士", name: "佐藤　由貴" },
+            { id: 33, category: "栄養士", name: "鈴木　美栄" },
+            { id: 34, category: "栄養士", name: "野村　久美子" },
+            { id: 35, category: "栄養士", name: "藤田　美保" },
+            { id: 36, category: "栄養士", name: "古川　千里" },
+            { id: 37, category: "保育士", name: "小島　香菜子" },
+            { id: 38, category: "保育士", name: "篠原　あい" },
+            { id: 39, category: "保育士", name: "篠原　和美" },
+            { id: 40, category: "保育士", name: "棚田　賀奈子" },
+            { id: 41, category: "保育士", name: "新津　美幸" },
+            { id: 42, category: "保育士", name: "西田　洋美" },
+            { id: 43, category: "保育士", name: "室岡　歩奈美" },
+            { id: 44, category: "検査技師", name: "都井　久子" },
+            { id: 45, category: "歯科衛生士", name: "井上　弘美" },
+            { id: 46, category: "歯科衛生士", name: "岩﨑　直枝" },
+            { id: 47, category: "歯科衛生士", name: "岩下　泉" },
+            { id: 48, category: "歯科衛生士", name: "臼田　真佐子" },
+            { id: 49, category: "歯科衛生士", name: "内田　公子" },
+            { id: 50, category: "歯科衛生士", name: "大塚　知香" },
+            { id: 51, category: "歯科衛生士", name: "大塚　結花" },
+            { id: 52, category: "歯科衛生士", name: "小松　朋子" },
+            { id: 53, category: "歯科衛生士", name: "小山　かほる" },
+            { id: 54, category: "歯科衛生士", name: "佐藤　さと美" },
+            { id: 55, category: "歯科衛生士", name: "田村　日出美" },
+            { id: 56, category: "歯科衛生士", name: "藤井　直美" },
+            { id: 57, category: "歯科衛生士", name: "宮川　さおり" },
+            { id: 58, category: "歯科衛生士", name: "宮嶋　典子" },
+            { id: 59, category: "歯科衛生士", name: "森沢　恵子" }
+        ];
+        
+        let employeesData = JSON.parse(localStorage.getItem('attendanceEmployeesV3')) || defaultEmployees;
+        let selectedCategory = null;
+        let selectedEmployees = [];
+        let selectedDivision = 'AM';
+        let punchHistory = JSON.parse(localStorage.getItem('attendanceHistoryV6')) || [];
+        let pendingPunch = { action: null, timeObj: null };
+        let isBatchOutMode = false;
+        let batchOutTargets = [];
+        let editingHistoryId = null;
+        let editTimeObj = null;
+        let pendingDeleteHistoryId = null;
+        let pendingDeleteEmpId = null;
+        let pendingDeleteEmpName = "";
+
+        const categoryBtn = document.getElementById('category-btn');
+        const employeeBtn = document.getElementById('employee-btn');
+        const categoryModal = document.getElementById('category-modal');
+        const employeeModal = document.getElementById('employee-modal');
+        const punchModal = document.getElementById('punch-modal');
+        const editHistoryModal = document.getElementById('edit-history-modal');
+        const confirmModal = document.getElementById('confirm-modal');
+        const manageModal = document.getElementById('manage-modal');
+        const toast = document.getElementById('toast');
+
+        function init() {
+            renderCategories();
+            renderHistory();
+            startClock();
+            updatePunchButtonsState();
+        }
+
+        function openCategoryModal() { categoryModal.classList.add('show'); }
+        function closeCategoryModal() { categoryModal.classList.remove('show'); }
+        function openEmployeeModal() { employeeModal.classList.add('show'); }
+        function closeEmployeeModal() { employeeModal.classList.remove('show'); }
+
+        function renderCategories() {
+            categoryBtn.textContent = '▼ ① 職種を選択';
+            employeeBtn.textContent = '▼ ② 氏名を選択（先に職種を選択してください）';
+            employeeBtn.disabled = true;
+
+            const catList = document.getElementById('category-list');
+            const mngCatList = document.getElementById('manage-category-list');
+            catList.innerHTML = '';
+            if (mngCatList) mngCatList.innerHTML = '';
+            
+            fixedCategories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = 'list-select-btn';
+                btn.textContent = cat;
+                btn.onclick = () => selectCategory(cat);
+                catList.appendChild(btn);
+                
+                if (mngCatList) {
+                    const mbtn = document.createElement('button');
+                    mbtn.className = 'list-select-btn';
+                    mbtn.textContent = cat;
+                    mbtn.onclick = () => {
+                        document.getElementById('manage-category-val').value = cat;
+                        document.getElementById('manage-category-btn').textContent = cat;
+                        closeManageCategoryModal();
+                    };
+                    mngCatList.appendChild(mbtn);
+                }
+            });
+        }
+        
+        function selectCategory(category) {
+            selectedCategory = category;
+            selectedEmployees = [];
+            categoryBtn.textContent = category;
+            employeeBtn.textContent = '▼ ② 氏名を選択（複数選択可）';
+            employeeBtn.disabled = false;
+            const empList = document.getElementById('employee-list');
+            empList.innerHTML = '';
+            const filtered = employeesData.filter(emp => emp.category === category);
+            
+            if (filtered.length === 0) {
+                empList.innerHTML = '<div style="padding: 2rem; color: var(--text-muted); font-weight: bold; text-align: center;">登録されている職員がいません</div>';
+            } else {
+                filtered.forEach(emp => {
+                    const label = document.createElement('label');
+                    label.className = 'emp-label';
+                    label.innerHTML = `<input type="checkbox" class="emp-checkbox custom-checkbox" value="${emp.name}" onchange="updateSelectedEmployeesText()"> <span>${emp.name}</span>`;
+                    empList.appendChild(label);
+                });
+            }
+            closeCategoryModal();
+            updatePunchButtonsState();
+        }
+
+        function updateSelectedEmployeesText() {
+            const checkboxes = document.querySelectorAll('.emp-checkbox:checked');
+            const count = checkboxes.length;
+            if (count === 1) { employeeBtn.textContent = checkboxes[0].value; } 
+            else if (count > 1) { employeeBtn.textContent = `${checkbox[0].value} ほか ${count - 1}名`; } 
+            else { employeeBtn.textContent = '▼ ② 氏名を選択（複数選択可）'; }
+        }
+
+        function selectAllEmployees() {
+            document.querySelectorAll('.emp-checkbox').forEach(cb => cb.checked = true);
+            updateSelectedEmployeesText();
+        }
+
+        function clearAllEmployees() {
+            document.querySelectorAll('.emp-checkbox').forEach(cb => cb.checked = false);
+            updateSelectedEmployeesText();
+        }
+
+        function confirmEmployeeSelection() {
+            const checkboxes = document.querySelectorAll('.emp-checkbox:checked');
+            selectedEmployees = Array.from(checkboxes).map(cb => cb.value);
+            if(selectedEmployees.length === 0) { showToast('1名以上選択してください'); return; }
+            closeEmployeeModal();
+            updatePunchButtonsState();
+        }
+
+        function selectDivision(div) {
+            selectedDivision = div;
+            document.getElementById('div-am').className = `div-btn ${div === 'AM' ? 'active-am' : ''}`;
+            document.getElementById('div-pm').className = `div-btn ${div === 'PM' ? 'active-pm' : ''}`;
+            updatePunchButtonsState();
+        }
+
+        function updatePunchButtonsState() {
+            const btnIn = document.getElementById('btn-in');
+            const btnOut = document.getElementById('btn-out');
+            btnIn.className = 'punch-btn'; btnOut.className = 'punch-btn';
+            if (selectedEmployees.length === 0) {
+                btnIn.disabled = true; btnOut.disabled = true; return;
+            }
+            btnIn.disabled = false; btnOut.disabled = false;
+            if (selectedDivision === 'AM') {
+                btnIn.classList.add('btn-in-am'); btnOut.classList.add('btn-out-am');
+            } else {
+                btnIn.classList.add('btn-in-pm'); btnOut.classList.add('btn-out-pm');
+            }
+        }
+
+        function getRoundedTime(date) {
+            const ms = 1000 * 60 * 5;
+            return new Date(Math.round(date.getTime() / ms) * ms);
+        }
+        function formatTimeDisplay(date) {
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        function openPunchModal(action) {
+            if (selectedEmployees.length === 0) return;
+            pendingPunch.action = action;
+            pendingPunch.timeObj = getRoundedTime(new Date());
+            let namesStr = selectedEmployees.length > 2 ? `${selectedEmployees[0]} さん 他${selectedEmployees.length-1}名` : selectedEmployees.join(', ');
+            document.getElementById('modal-employee-name').textContent = namesStr;
+            document.getElementById('modal-time-display').textContent = formatTimeDisplay(pendingPunch.timeObj);
+            const badge = document.getElementById('modal-badge');
+            
+            const iconSvg = selectedDivision==='AM' ? '<svg class="svg-icon"><use href="#icon-sun"></use></svg>' : '<svg class="svg-icon"><use href="#icon-moon"></use></svg>';
+            badge.innerHTML = `<span class="flex-center">${iconSvg} ${selectedDivision} - ${action==='IN'?'出勤':'退勤'}</span>`;
+            
+            badge.style.background = selectedDivision==='AM' ? 'var(--sky-light)' : 'var(--orange-light)';
+            badge.style.color = selectedDivision==='AM' ? '#0284c7' : '#c2410c';
+            isBatchOutMode = false;
+            punchModal.classList.add('show');
+        }
+
+        function closePunchModal() { punchModal.classList.remove('show'); }
+
+        function adjustPunchTime(minutes) {
+            pendingPunch.timeObj.setMinutes(pendingPunch.timeObj.getMinutes() + minutes);
+            document.getElementById('modal-time-display').textContent = formatTimeDisplay(pendingPunch.timeObj);
+        }
+
+        function commitPunch() {
+            const dateStr = `${pendingPunch.timeObj.getFullYear()}/${String(pendingPunch.timeObj.getMonth() + 1).padStart(2, '0')}/${String(pendingPunch.timeObj.getDate()).padStart(2, '0')}`;
+            const timeStr = formatTimeDisplay(pendingPunch.timeObj);
+            if (isBatchOutMode) {
+                [...batchOutTargets].reverse().forEach((target, index) => {
+                    punchHistory.unshift({
+                        id: Date.now() + '-' + index + '-' + Math.floor(Math.random() * 10000),
+                        name: target.name, division: target.division, action: 'OUT', date: dateStr, time: timeStr
+                    });
+                });
+                showToast(`${batchOutTargets.length}名の退勤を記録しました`);
+                document.getElementById('history-select-all').checked = false;
+            } else {
+                selectedEmployees.forEach((empName, index) => {
+                    punchHistory.unshift({
+                        id: Date.now() + '-' + index + '-' + Math.floor(Math.random() * 10000),
+                        name: empName, division: selectedDivision, action: pendingPunch.action, date: dateStr, time: timeStr
+                    });
+                });
+                showToast(`${selectedEmployees.length}名の ${pendingPunch.action==='IN'?'出勤':'退勤'}を記録しました`);
+            }
+            localStorage.setItem('attendanceHistoryV6', JSON.stringify(punchHistory));
+            closePunchModal();
+            selectedCategory = null;
+            selectedEmployees = [];
+            categoryBtn.textContent = '▼ ① 職種を選択';
+            employeeBtn.textContent = '▼ ② 氏名を選択（先に職種を選択してください）';
+            employeeBtn.disabled = true;
+            updatePunchButtonsState();
+            renderHistory();
+        }
+        
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            const empty = document.getElementById('empty-state');
+            list.innerHTML = '';
+            if (punchHistory.length === 0) {
+                empty.style.display = 'block';
+                list.parentElement.style.display = 'none';
+                return;
+            }
+            empty.style.display = 'none';
+            list.parentElement.style.display = 'table';
+            punchHistory.forEach(r => {
+                const tr = document.createElement('tr');
+                const actStr = r.action === 'IN' ? '出勤' : '退勤';
+                const actColor = r.action === 'IN' ? 'var(--sky)' : 'var(--orange)';
+                const badgeClass = r.division === 'AM' ? 'badge-am' : 'badge-pm';
+                let cbHtml = r.action === 'IN' ? `<input type="checkbox" class="history-checkbox custom-checkbox" value="${r.id}">` : '';
+                tr.innerHTML = `
+                    <td>${cbHtml}</td>
+                    <td style="font-family: monospace; line-height: 1.2;">
+                        <span style="color: var(--text-muted); font-size: 0.95rem;">${r.date}</span><br>
+                        <span style="color: var(--text-main); font-size: 1.6rem; font-weight: bold;">${r.time}</span>
+                    </td>
+                    <td style="color: ${actColor}; font-weight: bold; font-size: 1.5rem;">${actStr}</td>
+                    <td style="font-weight: bold; font-size: 1.5rem;">${r.name}</td>
+                    <td><span class="badge ${badgeClass}">${r.division}</span></td>
+                    <td style="vertical-align: middle;">
+                        <div class="flex-center" style="gap: 0.5rem;">
+                            <button class="action-btn btn-edit flex-center" onclick="openEditHistory('${r.id}')" title="編集" style="margin: 0;"><svg class="svg-icon"><use href="#icon-edit"></use></svg></button>
+                            <button class="action-btn btn-delete flex-center" onclick="deleteHistory('${r.id}')" title="削除" style="margin: 0;"><svg class="svg-icon"><use href="#icon-trash"></use></svg></button>
+                        </div>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+
+        function toggleAllHistory(checkbox) {
+            const checkboxes = document.querySelectorAll('.history-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function openBatchOutModal() {
+            const checked = document.querySelectorAll('.history-checkbox:checked');
+            if (checked.length === 0) { showToast('退勤させる出勤履歴を選択してください'); return; }
+            batchOutTargets = [];
+            checked.forEach(cb => {
+                const record = punchHistory.find(r => String(r.id) === String(cb.value));
+                if (record) batchOutTargets.push(record);
+            });
+            isBatchOutMode = true;
+            pendingPunch.action = 'OUT';
+            pendingPunch.timeObj = getRoundedTime(new Date());
+            document.getElementById('modal-employee-name').textContent = `${batchOutTargets.length}名 まとめて退勤`;
+            document.getElementById('modal-time-display').textContent = formatTimeDisplay(pendingPunch.timeObj);
+            const badge = document.getElementById('modal-badge');
+            badge.innerHTML = `<span class="flex-center"><svg class="svg-icon"><use href="#icon-stop"></use></svg> まとめて退勤</span>`;
+            badge.style.background = 'var(--orange-light)'; badge.style.color = '#c2410c';
+            punchModal.classList.add('show');
+        }
+        
+        function openEditHistory(id) {
+            const record = punchHistory.find(r => String(r.id) === String(id));
+            if(!record) return;
+            editingHistoryId = String(id);
+            const [y, m, d] = record.date.split('/');
+            const [hh, mm] = record.time.split(':');
+            editTimeObj = new Date(y, m-1, d, hh, mm);
+            document.getElementById('edit-history-info').textContent = `${record.date} ${record.name} (${record.division} ${record.action==='IN'?'出勤':'退勤'})`;
+            document.getElementById('edit-time-display').textContent = formatTimeDisplay(editTimeObj);
+            editHistoryModal.classList.add('show');
+        }
+        
+        function closeEditHistoryModal() { editHistoryModal.classList.remove('show'); }
+        function adjustEditTime(minutes) {
+            editTimeObj.setMinutes(editTimeObj.getMinutes() + minutes);
+            document.getElementById('edit-time-display').textContent = formatTimeDisplay(editTimeObj);
+        }
+        function saveEditHistory() {
+            const index = punchHistory.findIndex(r => String(r.id) === String(editingHistoryId));
+            if(index > -1) {
+                punchHistory[index].time = formatTimeDisplay(editTimeObj);
+                punchHistory[index].date = `${editTimeObj.getFullYear()}/${String(editTimeObj.getMonth() + 1).padStart(2, '0')}/${String(editTimeObj.getDate()).padStart(2, '0')}`;
+                localStorage.setItem('attendanceHistoryV6', JSON.stringify(punchHistory));
+                renderHistory();
+                showToast('打刻時間を修正しました');
+            }
+            closeEditHistoryModal();
+        }
+        
+        function deleteHistory(id) {
+            pendingDeleteHistoryId = id;
+            document.getElementById('delete-history-modal').classList.add('show');
+        }
+        function closeDeleteHistoryModal() {
+            document.getElementById('delete-history-modal').classList.remove('show');
+            pendingDeleteHistoryId = null;
+        }
+        function executeDeleteHistory() {
+            if(!pendingDeleteHistoryId) return;
+            punchHistory = punchHistory.filter(r => String(r.id) !== String(pendingDeleteHistoryId));
+            localStorage.setItem('attendanceHistoryV6', JSON.stringify(punchHistory));
+            renderHistory();
+            showToast('履歴を削除しました');
+            closeDeleteHistoryModal();
+        }
+
+        function showConfirmModal() { confirmModal.classList.add('show'); }
+        function hideConfirmModal() { confirmModal.classList.remove('show'); }
+        function executeClearHistory() {
+            punchHistory = [];
+            localStorage.removeItem('attendanceHistoryV6');
+            renderHistory();
+            hideConfirmModal();
+            showToast('履歴をクリアしました');
+        }
+        
+        let toastTimeout;
+        function showToast(msg) {
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        }
+
+        function startClock() {
+            const dateEl = document.getElementById('current-date');
+            const timeEl = document.getElementById('current-time');
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            setInterval(() => {
+                const now = new Date();
+                dateEl.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 (${days[now.getDay()]})`;
+                timeEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            }, 1000);
+        }
+        
+        function downloadExcel() {
+            if (punchHistory.length === 0) { showToast('出力するデータがありません'); return; }
+            const latestDateStr = punchHistory[0].date;
+            const parts = latestDateStr.split('/');
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            let tableHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+            tableHtml += '<head><meta charset="UTF-8"></head><body><table border="1"><tr><th></th><th>職種</th><th>氏名</th><th>AM/PM</th>';
+            for (let i = 1; i <= daysInMonth; i++) tableHtml += `<th>${i}日場所</th><th>${i}日時間</th>`;
+            tableHtml += '</tr>';
+
+            employeesData.forEach(emp => {
+                let amRow = `<tr><td></td><td>${emp.category}</td><td>${emp.name}</td><td>AM</td>`;
+                let pmRow = `<tr><td></td><td>${emp.category}</td><td>${emp.name}</td><td>PM</td>`;
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const targetDateStr = `${year}/${String(month).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+                    const inAm = punchHistory.find(r => r.name === emp.name && r.division === 'AM' && r.date === targetDateStr && r.action === 'IN');
+                    const outAm = punchHistory.find(r => r.name === emp.name && r.division === 'AM' && r.date === targetDateStr && r.action === 'OUT');
+                    let timeAm = "";
+                    if (inAm && outAm) {
+                        const inMins = parseInt(inAm.time.split(':')[0]) * 60 + parseInt(inAm.time.split(':')[1]);
+                        const outMins = parseInt(outAm.time.split(':')[0]) * 60 + parseInt(outAm.time.split(':')[1]);
+                        let diff = Math.max(0, outMins - inMins);
+                        timeAm = `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`;
+                    }
+                    amRow += `<td></td><td style="mso-number-format:'\@';">${timeAm}</td>`;
+
+                    const inPm = punchHistory.find(r => r.name === emp.name && r.division === 'PM' && r.date === targetDateStr && r.action === 'IN');
+                    const outPm = punchHistory.find(r => r.name === emp.name && r.division === 'PM' && r.date === targetDateStr && r.action === 'OUT');
+                    let timePm = "";
+                    if (inPm && outPm) {
+                        const inMins = parseInt(inPm.time.split(':')[0]) * 60 + parseInt(inPm.time.split(':')[1]);
+                        const outMins = parseInt(outPm.time.split(':')[0]) * 60 + parseInt(outPm.time.split(':')[1]);
+                        let diff = Math.max(0, outMins - inMins);
+                        timePm = `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`;
+                    }
+                    pmRow += `<td></td><td style="mso-number-format:'\@';">${timePm}</td>`;
+                }
+                tableHtml += amRow + '</tr>' + pmRow + '</tr>';
+            });
+            tableHtml += '</table></body></html>';
+
+            const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `出勤一覧_${year}年${month}月.xls`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            showToast('Excelファイルを出力しました');
+        }
+
+        function openManageModal() {
+            renderManageList();
+            manageModal.classList.add('show');
+        }
+        function closeManageModal() {
+            resetManageForm();
+            manageModal.classList.remove('show');
+            renderCategories();
+            selectedCategory = null;
+            selectedEmployees = [];
+            updatePunchButtonsState();
+        }
+        function renderManageList() {
+            const list = document.getElementById('manage-list');
+            list.innerHTML = '';
+            employeesData.forEach(emp => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${emp.category}</td>
+                    <td><span style="font-weight:bold; font-size:1.2rem;">${emp.name}</span></td>
+                    <td style="text-align: center; display: flex; gap: 0.5rem; justify-content: center;">
+                        <button class="action-btn btn-edit flex-center" onclick="editEmployee(${emp.id})"><svg class="svg-icon"><use href="#icon-edit"></use></svg> 編集</button>
+                        <button class="action-btn btn-delete flex-center" onclick="deleteEmployee(${emp.id})"><svg class="svg-icon"><use href="#icon-trash"></use></svg> 削除</button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+        
+        function openManageCategoryModal() { document.getElementById('manage-category-modal').classList.add('show'); }
+        function closeManageCategoryModal() { document.getElementById('manage-category-modal').classList.remove('show'); }
+
+        function prepareSaveEmployee(e) {
+            e.preventDefault();
+            const id = document.getElementById('manage-id').value;
+            const category = document.getElementById('manage-category-val').value.trim();
+            const name = document.getElementById('manage-name').value.trim();
+            
+            if(!category) { showToast('職種を選択してください'); return; }
+            if(!name) { showToast('氏名を入力してください'); return; }
+            
+            const titleIcon = id ? '<svg class="svg-icon" style="color:var(--sky)"><use href="#icon-edit"></use></svg> 職員を更新' : '<svg class="svg-icon" style="color:var(--primary)"><use href="#icon-plus"></use></svg> 職員を追加';
+            const msg = id ? `${category} - ${name} さんの情報を更新しますか？` : `${category} - ${name} さんを新しく追加しますか？`;
+
+            document.getElementById('save-emp-title').innerHTML = titleIcon;
+            document.getElementById('save-emp-msg').textContent = msg;
+            window.pendingSaveEmp = { id, category, name };
+            document.getElementById('save-emp-modal').classList.add('show');
+        }
+
+        function hideSaveEmpModal() { document.getElementById('save-emp-modal').classList.remove('show'); }
+        function executeSaveEmployee() {
+            const { id, category, name } = window.pendingSaveEmp;
+            if (id) {
+                const index = employeesData.findIndex(emp => emp.id == id);
+                if (index !== -1) {
+                    employeesData[index] = { id: parseInt(id), category, name };
+                    showToast(`${name} さんの情報を更新しました`);
+                }
+            } else {
+                const newId = employeesData.length > 0 ? Math.max(...employeesData.map(e => e.id)) + 1 : 1;
+                employeesData.push({ id: newId, category, name });
+                showToast(`${name} さんを追加しました`);
+            }
+            localStorage.setItem('attendanceEmployeesV3', JSON.stringify(employeesData));
+            renderManageList();
+            resetManageForm();
+            hideSaveEmpModal();
+        }
+        
+        function editEmployee(id) {
+            const emp = employeesData.find(e => e.id == id);
+            if (!emp) return;
+            document.getElementById('manage-id').value = emp.id;
+            document.getElementById('manage-category-val').value = emp.category;
+            document.getElementById('manage-category-btn').textContent = emp.category;
+            document.getElementById('manage-name').value = emp.name;
+            document.getElementById('manage-submit-btn').innerHTML = '<svg class="svg-icon"><use href="#icon-save"></use></svg> 更新';
+            document.getElementById('manage-cancel-btn').style.display = 'inline-block';
+            const form = document.getElementById('manage-form');
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            form.classList.remove('highlight-flash');
+            void form.offsetWidth;
+            form.classList.add('highlight-flash');
+            showToast('編集モードに切り替えました。');
+        }
+        
+        function deleteEmployee(id) {
+            const emp = employeesData.find(e => e.id == id);
+            if (!emp) return;
+            pendingDeleteEmpId = id;
+            pendingDeleteEmpName = emp.name;
+            document.getElementById('delete-emp-name').textContent = `対象: ${emp.category} - ${emp.name}`;
+            document.getElementById('delete-emp-modal').classList.add('show');
+        }
+        
+        function hideDeleteEmpModal() {
+            document.getElementById('delete-emp-modal').classList.remove('show');
+            pendingDeleteEmpId = null;
+        }
+
+        function executeDeleteEmployee() {
+            if(!pendingDeleteEmpId) return;
+            employeesData = employeesData.filter(e => e.id != pendingDeleteEmpId);
+            localStorage.setItem('attendanceEmployeesV3', JSON.stringify(employeesData));
+            renderManageList();
+            showToast(`${pendingDeleteEmpName} さんを削除しました`);
+            hideDeleteEmpModal();
+        }
+        
+        function resetManageForm() {
+            document.getElementById('manage-form').reset();
+            document.getElementById('manage-id').value = '';
+            document.getElementById('manage-category-val').value = '';
+            document.getElementById('manage-category-btn').textContent = '▼ 職種を選択';
+            document.getElementById('manage-submit-btn').innerHTML = '<svg class="svg-icon"><use href="#icon-plus"></use></svg> 追加';
+            document.getElementById('manage-cancel-btn').style.display = 'none';
+        }
+
+        window.onload = init;
+    </script>
+    
+    <!-- 外部のService Workerを読み込むための登録コード -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(console.error);
+        });
+      }
+    </script>
+</body>
+</html>
